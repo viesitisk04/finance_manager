@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -49,6 +50,34 @@ class DashboardController extends Controller
         $budgetUsagePercent = $budgetLimit > 0 ? min(($monthlyExpenses / $budgetLimit) * 100, 100) : 0;
         $budgetRemaining = max($budgetLimit - $monthlyExpenses, 0);
 
+        $monthlyExpensesByCategory = $user->transactions()
+            ->select('category', DB::raw('SUM(amount) as total'))
+            ->where('type', 'expense')
+            ->whereYear('date', $now->year)
+            ->whereMonth('date', $now->month)
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->get();
+
+        $expenseTrend = $user->transactions()
+            ->select('date', DB::raw('SUM(amount) as total'))
+            ->where('type', 'expense')
+            ->whereBetween('date', [$now->copy()->subDays(6)->toDateString(), $now->toDateString()])
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->keyBy(fn ($item) => \Carbon\Carbon::parse($item->date)->toDateString());
+
+        $trendLabels = [];
+        $trendValues = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $day = $now->copy()->subDays($i);
+            $dateKey = $day->toDateString();
+            $trendLabels[] = $day->format('M d');
+            $trendValues[] = (float) ($expenseTrend[$dateKey]->total ?? 0);
+        }
+
         return view('dashboard', compact(
             'dailyIncome',
             'dailyExpenses',
@@ -57,7 +86,10 @@ class DashboardController extends Controller
             'currentBalance',
             'budgetLimit',
             'budgetUsagePercent',
-            'budgetRemaining'
+            'budgetRemaining',
+            'monthlyExpensesByCategory',
+            'trendLabels',
+            'trendValues'
         ));
     }
 }

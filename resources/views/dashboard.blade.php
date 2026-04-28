@@ -49,6 +49,81 @@
                     @endif
                 </div>
             </div>
+
+            <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 class="font-semibold text-gray-700 mb-1">Monthly Spending by Category</h3>
+                    <p class="text-sm text-gray-500 mb-4">Automatically generated from your expense transactions.</p>
+                    <canvas id="categorySpendingChart" height="220"></canvas>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 class="font-semibold text-gray-700 mb-1">Last 7 Days Spending Trend</h3>
+                    <p class="text-sm text-gray-500 mb-4">Daily expense totals based on your inputted spending.</p>
+                    <canvas id="weeklySpendingTrendChart" height="220"></canvas>
+                </div>
+            </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const categoryLabels = @json($monthlyExpensesByCategory->pluck('category'));
+        const categoryValues = @json($monthlyExpensesByCategory->pluck('total')->map(fn ($value) => (float) $value));
+
+        const trendLabels = @json($trendLabels);
+        const trendValues = @json($trendValues);
+
+        const categoryCanvas = document.getElementById('categorySpendingChart');
+        if (categoryCanvas) {
+            if (categoryLabels.length > 0) {
+                new Chart(categoryCanvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: categoryLabels,
+                        datasets: [{
+                            data: categoryValues,
+                            backgroundColor: ['#4f46e5', '#16a34a', '#dc2626', '#f59e0b', '#0891b2', '#7c3aed', '#ea580c'],
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            } else {
+                categoryCanvas.parentElement.insertAdjacentHTML('beforeend', '<p class="text-sm text-gray-500 mt-3">No expense data available for this month yet.</p>');
+            }
+        }
+
+        const trendCanvas = document.getElementById('weeklySpendingTrendChart');
+        if (trendCanvas) {
+            new Chart(trendCanvas, {
+                type: 'line',
+                data: {
+                    labels: trendLabels,
+                    datasets: [{
+                        label: 'Daily Expenses',
+                        data: trendValues,
+                        borderColor: '#dc2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.12)',
+                        tension: 0.35,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    </script>
 </x-app-layout>
